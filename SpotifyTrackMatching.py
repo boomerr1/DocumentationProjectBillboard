@@ -6,15 +6,38 @@ import os
 import csv
 import json
 import pandas as pd
-from dtw import *
+from dtw import dtw
 import numpy as np
 from scipy.stats import gmean
 import time
 
 def divbygeomean(list):
+    """
+    Divide list by geometric mean.
+    Input:
+        list containing floats or integers, list cannot contain zeros and the funtion will produce an error if zero's are provided
+    Returns:
+        list containg floats or integers
+    """
     return list/gmean(list)
 
-def loop(overwrite, root):
+def ExecuteTimeWarp(overwrite, root):
+    """
+    Determine if the Timewarp function should be executed or if it should overwrite the existing files.
+
+    Input:    
+    root: txt string containing the folder path in which the song you want to match is located
+    overwrite: Bool, default = False
+        If true:
+            execute timewarp if differences.csv is present and overwrite it
+        If False:
+            execute timewarp only when differences.csv is not present.
+
+    Returns:
+        Bool:  
+            True: if timewarp() should be executed
+            False: if timewarp() should not be executed
+    """
     if overwrite == True and os.path.isfile(root + '/spotify_track_id.csv'):
         return True
     if not os.path.isfile(root + '/differences.csv'):
@@ -25,26 +48,46 @@ def loop(overwrite, root):
 def search_song(artist, track, song_root, overwrite=False):
     """
     Search for spotify id's with the name in the filetree or in the echonest folder.
-    Write the results to a csv.
+    The results are written to a csv file.
+
+    Input:
+        artist: txt string containing artist name
+        track:  txt string containing track title
+        song_root: txt string containing the folder path in which the song you want to match is located
+        overwrite: Bool default = False
+            If true:
+                search when spotify_track_id.csv is present and overwrite it
+            If False:
+                search only when spotify_track_id.csv is not present.
+    Returns:
+        Nothing
     """
     if not os.path.isfile(song_root + '/spotify_track_id.csv') or overwrite == True:
         if os.path.isfile(song_root + '/echonest.json'):
-            with open(song_root + '/echonest.json') as json_file:
+            # We need to load the data of the echonest.json in order to extract the artist- and trackname.
+            with open(song_root + '/echonest.json') as json_file: 
                 data = json.load(json_file)
                 artist_echo = data['meta']['artist']
                 title_echo = data['meta']['title']
             search_list = []
+            # This checks if both the artist and title of the echonest features are non_empty strings.
             if artist_echo and title_echo:
-                tracks = spotify.search(q='artist:' + str(artist_echo) + ' track:' + str(title_echo), type='track', limit=50)
+                tracks = spotify.search(q='artist:' + str(artist_echo) + ' track:' + str(title_echo), type='track', limit=50) # This uses echonest to look for tracks with the Spotify API
                 search_list = search_list+tracks['tracks']['items']
-            artist = artist.translate({ord(i):None for i in "'"})
+            # Removes apostrophes in order to improve the API search results.
+            artist = artist.translate({ord(i):None for i in "'"}) 
             track = song.translate({ord(i):None for i in "'"})
-            if artist_echo != artist or title_echo != track:
-                tracks_folder = spotify.search(q='artist:' + artist + ' track:' + track, type='track', limit=50)
-                search_list= search_list+tracks_folder['tracks']['items']
+            # If the echonest names are the exact same as the folder names, the Spotify API query would be the exact same.
+            if artist_echo != artist or title_echo != track: 
+                # This uses the folder names to look for tracks with the Spotify API
+                tracks_folder = spotify.search(q='artist:' + artist + ' track:' + track, type='track', limit=50) 
+                # The search results are also added to the search_list. This obviously could result in duplicates. This will be taken care of later.
+                search_list= search_list+tracks_folder['tracks']['items'] 
+            # Sometimes no results are found
             if len(search_list) > 0:
+                # In case the code is run multiple times and it created a no_result.txt file when there were no search results.
                 try:
-                    os.remove(song_root + "/no_result.txt")
+                    os.remove(song_root + "/no_result.txt") 
                 except OSError:
                     pass
                 df = pd.DataFrame()
@@ -52,7 +95,9 @@ def search_song(artist, track, song_root, overwrite=False):
                 tempo = []
                 loudness = []
                 song_length = []
+                # Before extracting the audio features of each individual track, the duplicate tracks are removed with the set() function.
                 features = spotify.audio_features(tracks=list(set([item['uri'] for item in search_list])))
+                # extract all needed data and write this to the csv file
                 for feature in features:
                     uris.append(feature['uri'])
                     tempo.append(feature['tempo'])
@@ -62,7 +107,8 @@ def search_song(artist, track, song_root, overwrite=False):
                 df.insert(len(df.columns), 'bpm', tempo, True)
                 df.insert(len(df.columns), 'loudness', loudness, True)
                 df.insert(len(df.columns), 'song_length', song_length, True)
-                df.to_csv(str(song_root + '/spotify_track_id.csv'), index=False)
+                df.to_csv(str(song_root + '/spotify _track_id.csv'), index=False)
+            # In case no results are found. This will create a 'no result' text file, containing the query.
             else:
                 try:
                     os.remove(song_root + "/spotify_track_id.csv")
@@ -84,26 +130,41 @@ def search_song(artist, track, song_root, overwrite=False):
 def timewarp(song_root, compare_features, overwrite=False, plot=False):
     """
     Evaluate search results based on audio analysis and other audio features.
+    This results in a .csv file containing a spotify trackid with the corresponding dtw_timbre, dtw_pithces, 
+    delta_bpm, delta_loudness and delta_length.
+
+    Input:
+        song_root: txt string containing the folder path in which the song you want to match is located
+        compare_features: list containing features to execute timewarping on, using something other than timbre and
+        pitches could require changes to the function.
+    
+    Returns:
+        Nothing
     """
-    if loop(overwrite, song_root):
+    # Only execute timewarp() if True is returned
+    if ExecuteTimeWarp(overwrite, song_root):
+        # Extract the spotify track ids of a given track
         df = pd.read_csv(song_root + '/spotify_track_id.csv', delimiter=',')
-        tempo_list = list(df['bpm'])
+        # 
         with open(song_root + '/echonest.json') as json_file:
+            # data also contains the timbre and pitches, which the dynamic time warping function needs.
             data = json.load(json_file)
             true_tempo = data['track']['tempo']
             true_loudness = data['track']['loudness']
+            # The echonest songlength is originally in seconds and needs to be in miliseconds in order to match spotify's format.
             true_length = data['track']['duration']*1000
         trax = df['Spotify_id']
-
         features = [[] for feature in compare_features]
         for track_id in trax:
+            # In case either the spotify analysis doesn't exist or something else prevents the retrieval process.
             try:
+                # the 'segments' tag contains low-level audio features segmented into multiple small time segments.
                 track_analysis = spotify.audio_analysis(track_id)['segments']
                 for i in range(len(compare_features)):
                     if compare_features[i] == 'pitches':
                         query = []
-                        for ding in data['segments']:
-                            pitches_lijst = ding[compare_features[i]]
+                        for segment in data['segments']:
+                            pitches_lijst = segment[compare_features[i]]
                             if not 0 in pitches_lijst:
                                 lijst = divbygeomean(pitches_lijst)
                             else:
@@ -111,7 +172,7 @@ def timewarp(song_root, compare_features, overwrite=False, plot=False):
                                 lijst = pitches_lijst/gmean([num for num in pitches_lijst if num >0])
                             query.append(lijst)
                         template = []
-                        for ding in track_analysis:
+                        for _ in track_analysis:
                             if not 0 in pitches_lijst:
                                 lijst = divbygeomean(pitches_lijst)
                             else:
@@ -149,6 +210,15 @@ def timewarp(song_root, compare_features, overwrite=False, plot=False):
             df.to_csv(str(song_root + '/differences.csv'), index=False)
 
 def weighted(lijst, pitch_weight=0.5, timbre_weight=0.5):
+    """
+    Input:
+        lijst: A list containing the pitches and timbres in the following format -> [[x,y] for x, y in zip(pitch, timbre)]
+        pitch_weight: The weight given to the pitch feature.
+        timbre_weight: The weight given to the timbre feature.
+
+    Returns:
+        The best pitch-timber combination.
+    """
     weights = [pitch_weight, timbre_weight]
     total_weight = 1
     for weight in weights:
@@ -171,6 +241,18 @@ def weighted(lijst, pitch_weight=0.5, timbre_weight=0.5):
     return lijst[-1]
 
 def threshold(song, params):
+    """
+    Input:
+        song: A list in the format of [pitch, timbre] selected by the weighted() function
+        params: A tuple that contains the threshold values (threshold_pitch, threshold_timbre).
+    Returns:
+        A tuple:
+            First element:
+                0, if no perfect match is found or an error occured
+                1, if the perfect match is found
+            Second element:
+                Either an error message when the first element is 0 or the matched song.
+    """
     if len(song) != len(params):
         return (0, "Not same amount of parameters given as features")
     else:
