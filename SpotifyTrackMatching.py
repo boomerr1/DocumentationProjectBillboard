@@ -87,6 +87,8 @@ def search_song(artist, track, song_root, overwrite=False):
                 data = json.load(json_file)
                 artist_echo = data['meta']['artist']
                 title_echo = data['meta']['title']
+                artist_echo = artist_echo.translate({ord(i):None for i in "'"}) 
+                title_echo = title_echo.translate({ord(i):None for i in "'"})
             search_list = []
 
             # This checks if both the artist and title of the echonest features are non_empty strings.
@@ -124,17 +126,19 @@ def search_song(artist, track, song_root, overwrite=False):
                 features = spotify.audio_features(tracks=list(set([item['uri'] for item in search_list])))
                 
                 # extract all needed data and write this to the csv file
+                
                 for feature in features:
-                    uris.append(feature['uri'])
-                    tempo.append(feature['tempo'])
-                    loudness.append(feature['loudness'])
-                    song_length.append(feature['duration_ms'])
+                    if feature:
+                        uris.append(feature['uri'])
+                        tempo.append(feature['tempo'])
+                        loudness.append(feature['loudness'])
+                        song_length.append(feature['duration_ms'])
 
                 df.insert(len(df.columns), 'Spotify_id', uris, True)
                 df.insert(len(df.columns), 'bpm', tempo, True)
                 df.insert(len(df.columns), 'loudness', loudness, True)
                 df.insert(len(df.columns), 'song_length', song_length, True)
-                df.to_csv(str(song_root + '/spotify _track_id.csv'), index=False)
+                df.to_csv(str(song_root + '/spotify_track_id.csv'), index=False)
 
             # In case no results are found. This will create a 'no_result.txt' file, containing the query.
             else:
@@ -366,10 +370,10 @@ def select(song_root, threshold_pitch, threshold_timbre, overwrite=False):
 
 if __name__ == "__main__":
     compare_features = ['timbre', 'pitches']
-    overwrite = True
+    overwrite = False
     plot = False
-    threshold_pitch = 20
-    threshold_timbre = 60
+    threshold_pitch = 0.5
+    threshold_timbre = 50
 
     spotify = spotipy.Spotify(client_credentials_manager=SpotifyClientCredentials())
 
