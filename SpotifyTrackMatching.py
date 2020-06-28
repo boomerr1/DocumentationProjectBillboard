@@ -94,8 +94,6 @@ def search_song(artist, track, song_root, overwrite=False):
             # Removes apostrophes in order to improve the API search results.
             artist = artist.translate({ord(i):None for i in "'"}) 
             track = song.translate({ord(i):None for i in "'"})
-            artist_echo = artist_echo.translate({ord(i):None for i in "'"}) 
-            title_echo = title_echo.translate({ord(i):None for i in "'"})
 
             # This checks if both the artist and title of the echonest features are non_empty strings.
             if artist_echo and title_echo:
