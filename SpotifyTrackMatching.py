@@ -374,10 +374,10 @@ def select(song_root, threshold_pitch, threshold_timbre, overwrite=False):
 
 if __name__ == "__main__":
     compare_features = ['timbre', 'pitches']
-    overwrite = False
+    overwrite = True
     plot = False
-    threshold_pitch = 0.5
-    threshold_timbre = 50
+    threshold_pitch = 0.7
+    threshold_timbre = 55
 
     spotify = spotipy.Spotify(client_credentials_manager=SpotifyClientCredentials())
 
