@@ -87,13 +87,13 @@ def search_song(artist, track, song_root, overwrite=False):
                 data = json.load(json_file)
                 artist_echo = data['meta']['artist']
                 title_echo = data['meta']['title']
+                artist_echo = artist_echo.translate({ord(i):None for i in "'"}) 
+                title_echo = title_echo.translate({ord(i):None for i in "'"})
             search_list = []
 
             # Removes apostrophes in order to improve the API search results.
             artist = artist.translate({ord(i):None for i in "'"}) 
             track = song.translate({ord(i):None for i in "'"})
-            artist_echo = artist_echo.translate({ord(i):None for i in "'"}) 
-            title_echo = title_echo.translate({ord(i):None for i in "'"})
 
             # This checks if both the artist and title of the echonest features are non_empty strings.
             if artist_echo and title_echo:
@@ -126,11 +126,13 @@ def search_song(artist, track, song_root, overwrite=False):
                 features = spotify.audio_features(tracks=list(set([item['uri'] for item in search_list])))
                 
                 # extract all needed data and write this to the csv file
+                
                 for feature in features:
-                    uris.append(feature['uri'])
-                    tempo.append(feature['tempo'])
-                    loudness.append(feature['loudness'])
-                    song_length.append(feature['duration_ms'])
+                    if feature:
+                        uris.append(feature['uri'])
+                        tempo.append(feature['tempo'])
+                        loudness.append(feature['loudness'])
+                        song_length.append(feature['duration_ms'])
 
                 df.insert(len(df.columns), 'Spotify_id', uris, True)
                 df.insert(len(df.columns), 'bpm', tempo, True)
@@ -215,8 +217,8 @@ def timewarp(song_root, compare_features, overwrite=False, plot=False):
 
                         template = []
                         # Also normalize the Spotify pitch segments
-                        for pitches_lijst in track_analysis['pitches']:
-
+                        for segment in track_analysis:
+                            pitches_lijst = segment[compare_features[i]]
                             if not 0 in pitches_lijst:
                                 lijst = divbygeomean(pitches_lijst)
                             else:
@@ -374,8 +376,8 @@ if __name__ == "__main__":
     compare_features = ['timbre', 'pitches']
     overwrite = False
     plot = False
-    threshold_pitch = 20
-    threshold_timbre = 60
+    threshold_pitch = 0.5
+    threshold_timbre = 50
 
     spotify = spotipy.Spotify(client_credentials_manager=SpotifyClientCredentials())
 
@@ -393,6 +395,7 @@ if __name__ == "__main__":
             if artist == '__MACOSX':
                 break
             
+            
             artist_root = os.path.join(year_root, artist)
 
             if not os.path.isdir(artist_root):
@@ -404,6 +407,8 @@ if __name__ == "__main__":
 
                 if os.path.isfile(song_root):
                     break
+                
+                print(song_root)
 
                 search_song(artist, song, song_root, overwrite=overwrite)
                 timewarp(song_root, compare_features, overwrite=overwrite, plot=plot)
