@@ -89,14 +89,16 @@ def search_song(artist, track, song_root, overwrite=False):
                 title_echo = data['meta']['title']
             search_list = []
 
+            # Removes apostrophes in order to improve the API search results.
+            artist = artist.translate({ord(i):None for i in "'"}) 
+            track = song.translate({ord(i):None for i in "'"})
+            artist_echo = artist_echo.translate({ord(i):None for i in "'"}) 
+            title_echo = title_echo.translate({ord(i):None for i in "'"})
+
             # This checks if both the artist and title of the echonest features are non_empty strings.
             if artist_echo and title_echo:
                 tracks = spotify.search(q='artist:' + str(artist_echo) + ' track:' + str(title_echo), type='track', limit=50) # This uses echonest to look for tracks with the Spotify API
                 search_list = search_list+tracks['tracks']['items']
-
-            # Removes apostrophes in order to improve the API search results.
-            artist = artist.translate({ord(i):None for i in "'"}) 
-            track = song.translate({ord(i):None for i in "'"})
 
             # If the echonest names are the exact same as the folder names, the Spotify API query would be the exact same.
             if artist_echo != artist or title_echo != track:
@@ -134,7 +136,7 @@ def search_song(artist, track, song_root, overwrite=False):
                 df.insert(len(df.columns), 'bpm', tempo, True)
                 df.insert(len(df.columns), 'loudness', loudness, True)
                 df.insert(len(df.columns), 'song_length', song_length, True)
-                df.to_csv(str(song_root + '/spotify _track_id.csv'), index=False)
+                df.to_csv(str(song_root + '/spotify_track_id.csv'), index=False)
 
             # In case no results are found. This will create a 'no_result.txt' file, containing the query.
             else:
