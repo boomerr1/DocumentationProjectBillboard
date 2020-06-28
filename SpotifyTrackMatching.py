@@ -213,8 +213,8 @@ def timewarp(song_root, compare_features, overwrite=False, plot=False):
 
                         template = []
                         # Also normalize the Spotify pitch segments
-                        for pitches_lijst in track_analysis['pitches']:
-
+                        for segment in track_analysis:
+                            pitches_lijst = segment[compare_features[i]]
                             if not 0 in pitches_lijst:
                                 lijst = divbygeomean(pitches_lijst)
                             else:
@@ -366,7 +366,7 @@ def select(song_root, threshold_pitch, threshold_timbre, overwrite=False):
 
 if __name__ == "__main__":
     compare_features = ['timbre', 'pitches']
-    overwrite = False
+    overwrite = True
     plot = False
     threshold_pitch = 20
     threshold_timbre = 60
@@ -387,6 +387,7 @@ if __name__ == "__main__":
             if artist == '__MACOSX':
                 break
             
+            
             artist_root = os.path.join(year_root, artist)
 
             if not os.path.isdir(artist_root):
@@ -398,6 +399,8 @@ if __name__ == "__main__":
 
                 if os.path.isfile(song_root):
                     break
+                
+                print(song_root)
 
                 search_song(artist, song, song_root, overwrite=overwrite)
                 timewarp(song_root, compare_features, overwrite=overwrite, plot=plot)
