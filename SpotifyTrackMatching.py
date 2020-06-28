@@ -265,6 +265,10 @@ def timewarp(song_root, compare_features, overwrite=False, plot=False):
 
 def weighted(lijst, pitch_weight=0.5, timbre_weight=0.5):
     """
+    Determines the best track, given the pitch and timber combination and corresponding weights.
+    The algorithm loops over every track and breaks once a track is found which has no relatively better track. 
+    Otherwise it keeps searching until it does. Ultimately the last song is selected if no previous song was selected.
+    
     Input:
         lijst: A list containing the pitches and timbres in the following format -> [[x,y] for x, y in zip(pitch, timbre)]
         pitch_weight: The weight given to the pitch feature.
