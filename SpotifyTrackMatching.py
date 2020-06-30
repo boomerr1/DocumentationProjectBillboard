@@ -334,13 +334,15 @@ def threshold(song, params):
 
 def select(song_root, threshold_pitch, threshold_timbre, overwrite=False):
     """
-    Select the best matched songs.
+    Select the best match out of the differences.csv according to the given timbre and pitch threshold and write it to spotify.json
 
     Input:
-        song_root: the song you want to 
+        song_root: the song you want to select the best spotify match for
+        threshold_pitch: the threshold for the pitch
+        threshold_timbre: the threshold for the timbre
 
     Returns:
-
+        Nothing
     """
     # if os.path.isfile(song_root + '/differences.csv') or overwrite == True and os.path.isfile(song_root + '/differences.csv'):
     if (not os.path.isfile(song_root + '/spotify.json')) and os.path.isfile(song_root + '/differences.csv') or overwrite == True and os.path.isfile(song_root + '/differences.csv'):
